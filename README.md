@@ -5,6 +5,7 @@ A rough start to implementing non-abelian symmetry into electronic structure cod
 Make sure to have Psi4 and Psi4numpy as importable modules?
 
 # Setup
+```
   git clone https://github.com/sgoodlett/NASymmetry.git
   cd NASymmetry
   cd libmsym
@@ -17,4 +18,4 @@ Make sure to have Psi4 and Psi4numpy as importable modules?
   python setup.py install --user
   cd ../../../
   ./exp_var.sh
-  
+```
