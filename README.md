@@ -5,6 +5,7 @@ A rough start to implementing non-abelian symmetry into electronic structure cod
 Make sure to have Psi4 and Psi4numpy as importable modules?
 
 # Setup
+These are the steps to build libmsym and its Python bindings and also add the Python bindings to PYTHONPATH. Most of this is taken from the libmsym page. Hopefully I am not violating any licenses.
 ```
   git clone https://github.com/sgoodlett/NASymmetry.git
   cd NASymmetry
