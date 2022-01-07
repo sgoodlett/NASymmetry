@@ -2,7 +2,7 @@
 Non-Abelian Symmetry
 
 A rough start to implementing non-abelian symmetry into electronic structure code.
-Make sure to have Psi4 and Psi4numpy as importable modules?
+Make sure to have Psi4!
 
 # Setup
 These are the steps to build libmsym and its Python bindings and also add the Python bindings to PYTHONPATH. Most of this is taken from the libmsym page. Hopefully I am not violating any licenses.
