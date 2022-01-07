@@ -61,8 +61,9 @@ def gen_salcs(mol):
         for e in elements:
             continue
             print(f"{e.name}:{e.coordinates}")
-        print(ctx.character_table.table)
-        print(ctx.character_table.symmetry_operations)
+        return super_irrep_block
+        #print(ctx.character_table.table)
+        #print(ctx.character_table.symmetry_operations)
 #        for i in range(len(super_irrep_block)):
 #            if i == 0:
 #                a = super_irrep_block[i]
@@ -81,4 +82,5 @@ if __name__ == "__main__":
     #print(h2o.to_arrays())
     print(wfn.aotoso().nph)
     salcs = gen_salcs(h2o)
+    print(salcs)
 
