@@ -82,5 +82,5 @@ if __name__ == "__main__":
     #print(h2o.to_arrays())
     print(wfn.aotoso().nph)
     salcs = gen_salcs(h2o)
-    print(salcs)
+    print(type(salcs[0][0][0]))
 
