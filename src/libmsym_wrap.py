@@ -1,36 +1,49 @@
 import libmsym as msym
 import numpy as np
 import psi4
+import pprint
 
 def find_bf_idx(target_bf, bf_map):
     for i,bf in bf_map:
         if target_bf == bf:
             return i
 
-def set_basis(element):
-    if element.name == "O":
-        bf_1s = msym.RealSphericalHarmonic(element=element, n=1, l=0, m=0, name="1s")
-        bf_2s = msym.RealSphericalHarmonic(element=element, n=2, l=0, m=0, name="2s")
-        bf_2py = msym.RealSphericalHarmonic(element=element, n=2, l=1, m=0, name="2pzonder")
-        bf_2pz = msym.RealSphericalHarmonic(element=element, n=2, l=1, m=-1, name="2pxonder")
-        bf_2px = msym.RealSphericalHarmonic(element=element, n=2, l=1, m=1, name="2pyonder")
-        basis_functions = [bf_1s, bf_2s, bf_2pz, bf_2px, bf_2py]
-        element.basis_functions = basis_functions
-        return basis_functions
-    else:
-        bf_1s = msym.RealSphericalHarmonic(element=element, n=1, l=0, m=0, name="1s")
-        basis_functions = [bf_1s]
-        element.basis_functions = basis_functions
-        return basis_functions
+def set_basis(element, z):
+    basis_functions = []
+    check = []
+    z = z*2 
+    bf_on_atoms = []
+    am_vals = molecule_basis[z + 1]
+    iterator = 0
+    for l in am_vals:
+        n = l + 1 + iterator
+        for m in range(0,l+1):
+            if m == 0:
+                bf = msym.RealSphericalHarmonic(element = element, n = n, l = l, m = m, name =  "whocares")
+                basis_functions.append(bf)
+                check.append([l, m])
+            else:
+                bf = msym.RealSphericalHarmonic(element = element, n = n, l = l, m = m, name =  "whocares")
+                basis_functions.append(bf)
+                check.append([l, m])
+                bf = msym.RealSphericalHarmonic(element = element, n = n, l = l, m = -m, name =  "whocares")
+                basis_functions.append(bf)
+                check.append([l, -m])
+        iterator +=1
+    bf_on_atoms.append(check)
+    element.basis_functions = basis_functions
+    return basis_functions
 
 def gen_salcs(mol):
     (coord, masses, atoms, *garbage) = mol.to_arrays()
     elements = []
     for i in range(mol.natom()):
         elements.append(msym.Element(name=atoms[i], mass=masses[i], coordinates=coord[i]))
+    
+
     basis_functions = []
-    for e in elements:
-        bf = set_basis(e)
+    for z, e in enumerate(elements):
+        bf = set_basis(e, z)
         for bfi in bf:
             basis_functions.append(bfi)
     aos_map = []
@@ -55,13 +68,17 @@ def gen_salcs(mol):
                 irrep_block[bfidxs,salcidx] = salc.partner_functions
                 salcidx += 1
             super_irrep_block.append(irrep_block)
+        separate_pieces = []
         for srsidx in range(len(ctx.subrepresentation_spaces)):
-            continue
-            print(ctx.character_table.symmetry_species[srsidx].name, super_irrep_block[srsidx])
+            #continue
+            #print(ctx.character_table.symmetry_species[srsidx].name, super_irrep_block[srsidx])
+            print(super_irrep_block[srsidx])
+            print(type(super_irrep_block[srsidx]))
+            separate_pieces.append(super_irrep_block[srsidx])
         for e in elements:
             continue
             print(f"{e.name}:{e.coordinates}")
-        return super_irrep_block
+        return super_irrep_block, separate_pieces
         #print(ctx.character_table.table)
         #print(ctx.character_table.symmetry_operations)
 #        for i in range(len(super_irrep_block)):
@@ -71,16 +88,46 @@ def gen_salcs(mol):
 #                a = np.concatenate((a, super_irrep_block[i]), axis=1)
 #        np.set_printoptions(formatter={"float": "{: 2.1f}".format})
 
-
+def get_basis(molecule):
+    num = molecule.natom()
+    molecule_basis = []
+    for x in range(0, num):
+        atom_basis = []
+        molecule_basis.append(str(molecule.symbol(x)))
+        for y in range(0, basis.nshell_on_center(x)):
+            atom_basis.append(basis.shell(y).am)
+        molecule_basis.append(atom_basis)
+    return molecule_basis
 
 
 if __name__ == "__main__":
-    h2o = psi4.geometry("O \nH 1 0.96\nH 1 0.96 2 104.5")
-    #psi4.set_options({"basis":"sto-3g"})
-    #print(h2o.basis_on_atom(0))
-    wfn = psi4.core.Wavefunction.build(h2o, "sto-3g")
-    #print(h2o.to_arrays())
+    pp = pprint.PrettyPrinter(indent=4)
+    np.set_printoptions(precision=10, linewidth=140, suppress=True)
+    
+    # Load in the required options, print out
+    from input import Settings
+    pp.pprint(Settings)
+    
+    
+    molecule = psi4.geometry(Settings['molecule'])
+   
+    #Puream MUST be set to True for the code to work, as only the transformation of
+    #pure angular momentum (spherical harmonics) under the group operations is supported
+    
+    basis = psi4.core.BasisSet.build(molecule, 'BASIS', Settings['basis'], puream=True)
+    mints = psi4.core.MintsHelper(basis)
+
+    wfn = psi4.core.Wavefunction.build(molecule, basis)
+
+    molecule_basis = get_basis(molecule)
+
+    # print out psi4's AO -> SO transformation matrix, which is the current target of this script
+    print('psi4 ao->so')
     print(wfn.aotoso().nph)
-    salcs = gen_salcs(h2o)
-    print(type(salcs[0][0][0]))
+    
+    salcs, blocks = gen_salcs(molecule)
+ 
+    print('libmsym ao->so')
+    print(salcs)
+    
 
