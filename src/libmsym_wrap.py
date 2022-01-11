@@ -57,36 +57,23 @@ def gen_salcs(mol):
         selements = ctx.symmetrize_elements()
         nbfxns = len(basis_functions)
         super_irrep_block = []
-        for srs in ctx.subrepresentation_spaces:
+        for srsidx, srs in enumerate(ctx.subrepresentation_spaces):
             salcidx = 0
-            nsalcs_per_irrep = len(srs.salcs)
+            nsalcs_per_irrep = sum([len(salc.partner_functions) for salc in srs.salcs])
             irrep_block = np.zeros((nbfxns,nsalcs_per_irrep))
             for salc in srs.salcs:
                 bfidxs = []
                 for bf in salc.basis_functions:
                     bfidxs.append(find_bf_idx(bf, aos_map))
-                irrep_block[bfidxs,salcidx] = salc.partner_functions
-                salcidx += 1
+                for pf in salc.partner_functions:
+                    irrep_block[bfidxs,salcidx] = pf
+                    salcidx += 1
             super_irrep_block.append(irrep_block)
         separate_pieces = []
         for srsidx in range(len(ctx.subrepresentation_spaces)):
-            #continue
-            #print(ctx.character_table.symmetry_species[srsidx].name, super_irrep_block[srsidx])
-            print(super_irrep_block[srsidx])
-            print(type(super_irrep_block[srsidx]))
+            #print(ctx.character_table.symmetry_species[srsidx].name, super_irrep_block[srsidx]) # Will print aotoso matrix WITH irreps
             separate_pieces.append(super_irrep_block[srsidx])
-        for e in elements:
-            continue
-            print(f"{e.name}:{e.coordinates}")
         return super_irrep_block, separate_pieces
-        #print(ctx.character_table.table)
-        #print(ctx.character_table.symmetry_operations)
-#        for i in range(len(super_irrep_block)):
-#            if i == 0:
-#                a = super_irrep_block[i]
-#            else:
-#                a = np.concatenate((a, super_irrep_block[i]), axis=1)
-#        np.set_printoptions(formatter={"float": "{: 2.1f}".format})
 
 def get_basis(molecule):
     num = molecule.natom()
