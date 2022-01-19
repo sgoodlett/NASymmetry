@@ -1,20 +1,13 @@
 import libmsym as msym
 import numpy as np
 import pprint
-import scipy
-from scipy.linalg import fractional_matrix_power
-from scipy.linalg import block_diag
-from scipy import linalg as LA
-from collections import Counter
 
 """
 This class is used to generate Symmetry-Adapted Linear Combinations of Atomic Orbitals (SALCS)
 for the use of symmetrizing wavefunctions in electronic structure methods.
 """
 
-
 class LibmsymWrapper(object):
-
     def __init__(self, molecule, molecule_basis):
         self.molecule = molecule
         self.molecule_basis = molecule_basis
@@ -102,7 +95,5 @@ class LibmsymWrapper(object):
                 return super_irrep_block, separate_pieces
 
         salcs, blocks = gen_salcs(self.molecule)
-        self.salcs = salcs 
-
-
-    
+        self.salcs = salcs
+        
