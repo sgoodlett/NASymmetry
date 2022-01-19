@@ -2,6 +2,55 @@ import libmsym as msym
 import numpy as np
 import psi4
 import pprint
+from dataclasses import dataclass
+import re
+
+@dataclass
+class SymmetryOperation:
+    name: str
+    order: int
+    power: int
+    axis: np.array
+    cla: int
+
+@dataclass
+class Irrep:
+    name: str
+    characters: np.array
+    idx: int
+
+class CharacterTable():
+    def __init__(self, name, irreps, symops, rep_symops):
+        self.name = name
+        self.irreps = irreps
+        self.symops = symops
+        self.rep_symops = rep_symops
+        self.nirreps = len(irreps)
+        self.table = np.zeros((self.nirreps, self.nirreps))
+        self.h = 0
+        for i, irrep in enumerate(self.irreps):
+            self.h += irrep.characters[0]
+            self.table[i,:] = irrep.characters
+        self.class_orders = np.zeros((self.nirreps, ))
+        for s, symop in enumerate(self.symops):
+            self.class_orders[symop.cla] += 1
+
+    def __str__(self):
+        strang = f"\nCharacter Table for {self.name} point group\n"
+        for i, rsym in enumerate(self.rep_symops):
+            if self.class_orders[i] == 1:
+                n = ""
+            else:
+                n = int(self.class_orders[i])
+            strang += f"\t{n}{rsym}"
+        for i, irrep in enumerate(self.irreps):
+            strang += f"\n{irrep.name}\t"
+            for j in irrep.characters:
+                strang += f"{int(j):2d}\t"
+        return strang
+
+    def __repr__(self):
+        return self.__str__()
 
 def find_bf_idx(target_bf, bf_map):
     for i,bf in bf_map:
@@ -55,6 +104,30 @@ def gen_salcs(mol):
     with msym.Context(elements=elements, basis_functions=basis_functions) as ctx:
         pg = ctx.find_symmetry()
         selements = ctx.symmetrize_elements()
+        # Convert libmsym objects to our objects
+        symops = []
+        rgx = re.compile(r"^libmsym.SymmetryOperation\(\s*([^,\s]*)\s*")
+        for s, symop in enumerate(ctx.symmetry_operations):
+            m = re.match(rgx, str(symop))
+            if m:
+                name = m.group(1)
+            else:
+                raise RuntimeError("No name found for libmsym symmetry operation!")
+            symops.append(SymmetryOperation(name, symop.order, symop.power, np.array(symop.vector), symop.conjugacy_class))
+        irreps = []
+        for i, irrep in enumerate(ctx.subrepresentation_spaces):
+            irreps.append(Irrep(ctx.character_table.symmetry_species[i].name, ctx.character_table.table[i,:], i))
+        rsymops = []
+        for i in ctx.character_table.symmetry_operations:
+            m = re.match(rgx, str(i))
+            if m:
+                rsymops.append(m.group(1))
+            else:
+                raise RuntimeError("No name found for libmsym symmetry operation!")
+        
+        ctab = CharacterTable(pg, irreps, symops, rsymops)
+        
+        # Grab SALCs from libmysm
         nbfxns = len(basis_functions)
         super_irrep_block = []
         for srsidx, srs in enumerate(ctx.subrepresentation_spaces):
@@ -73,7 +146,7 @@ def gen_salcs(mol):
         for srsidx in range(len(ctx.subrepresentation_spaces)):
             #print(ctx.character_table.symmetry_species[srsidx].name, super_irrep_block[srsidx]) # Will print aotoso matrix WITH irreps
             separate_pieces.append(super_irrep_block[srsidx])
-        return super_irrep_block, separate_pieces
+        return super_irrep_block, separate_pieces, ctab
 
 def get_basis(molecule):
     num = molecule.natom()
@@ -109,12 +182,12 @@ if __name__ == "__main__":
     molecule_basis = get_basis(molecule)
 
     # print out psi4's AO -> SO transformation matrix, which is the current target of this script
-    print('psi4 ao->so')
-    print(wfn.aotoso().nph)
+    #print('psi4 ao->so')
+    #print(wfn.aotoso().nph)
     
-    salcs, blocks = gen_salcs(molecule)
+    salcs, blocks, ctab = gen_salcs(molecule)
  
-    print('libmsym ao->so')
-    print(salcs)
+    #print('libmsym ao->so')
+    #print(salcs)
     
 
