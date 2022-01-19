@@ -1,3 +1,4 @@
+from character_table import CharacterTable
 import libmsym as msym
 import numpy as np
 import pprint
@@ -73,6 +74,7 @@ class LibmsymWrapper(object):
             with msym.Context(elements=elements, basis_functions=basis_functions) as ctx:
                 pg = ctx.find_symmetry()
                 selements = ctx.symmetrize_elements()
+                ctab = CharacterTable.from_libmsym(ctx, pg)
                 nbfxns = len(basis_functions)
                 super_irrep_block = []
                 for srsidx, srs in enumerate(ctx.subrepresentation_spaces):
@@ -92,8 +94,9 @@ class LibmsymWrapper(object):
                 for srsidx in range(len(ctx.subrepresentation_spaces)):
                     print(ctx.character_table.symmetry_species[srsidx].name, super_irrep_block[srsidx]) # Will print aotoso matrix WITH irreps
                     separate_pieces.append(super_irrep_block[srsidx])
-                return super_irrep_block, separate_pieces
+                return super_irrep_block, separate_pieces, ctab
 
-        salcs, blocks = gen_salcs(self.molecule)
+        salcs, blocks, ctab = gen_salcs(self.molecule)
         self.salcs = salcs
+        self.ctab = ctab
 
