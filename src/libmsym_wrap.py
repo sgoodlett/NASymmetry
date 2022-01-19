@@ -96,4 +96,4 @@ class LibmsymWrapper(object):
 
         salcs, blocks = gen_salcs(self.molecule)
         self.salcs = salcs
-        
+
