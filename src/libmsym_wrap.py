@@ -19,6 +19,11 @@ class Irrep:
     characters: np.array
     idx: int
 
+@dataclass
+class DPResult:
+    irreps: list
+    mult: np.array
+
 class CharacterTable():
     def __init__(self, name, irreps, symops, rep_symops):
         self.name = name
@@ -51,6 +56,51 @@ class CharacterTable():
 
     def __repr__(self):
         return self.__str__()
+
+    def full_direct_product(self, a, b, *args):
+        chars = a.characters * b.characters
+        for arg in args:
+            chars *= arg.characters
+        m = chars * self.class_orders
+        return self.find_irrep(m)
+
+    def dp_contains(self, irrep, a, b, *args):
+        chars = a.characters * b.characters
+        for arg in args:
+            chars *= arg.characters
+        s = sum(chars * self.class_orders * irrep.characters)
+        n = s // self.h
+        if n > 0:
+            return True
+        return False
+
+    def idx_from_irrep(self, irrep):
+        for i, selfirreps in enumerate(self.irreps):
+            if irrep == selfirreps:
+                return i
+        return RuntimeError("No match found in idx_from_irrep")
+
+    def _direct_product(self, a, b):
+        m = a.characters * b.characters * self.class_orders
+        return self.find_irrep(m)
+
+    def find_irrep(self, characters):
+        for idx, irrep in enumerate(self.irreps):
+            if np.array_equal(characters, irrep.characters):
+                return DPResult([irrep], [1])
+        return self.decompose_rep(characters)
+
+    def decompose_rep(self, characters):
+        constituent_irreps = []
+        multiplicities = []
+        for idx, irrep in enumerate(self.irreps):
+            s = sum(characters * irrep.characters)
+            n = s // self.order
+            n = int(n)
+            if n != 0:
+                constituent_irreps.append(irrep)
+                multiplicities.append(n)
+        return DPResult(constituent_irreps, np.array(multiplicities))
 
 def find_bf_idx(target_bf, bf_map):
     for i,bf in bf_map:
@@ -186,7 +236,7 @@ if __name__ == "__main__":
     #print(wfn.aotoso().nph)
     
     salcs, blocks, ctab = gen_salcs(molecule)
- 
+    print(ctab.dp_contains(ctab.irreps[0], ctab.irreps[2], ctab.irreps[2], ctab.irreps[2], ctab.irreps[2]))
     #print('libmsym ao->so')
     #print(salcs)
     
