@@ -15,6 +15,7 @@ class Irrep:
     name: str
     characters: np.array
     idx: int
+    orbital_idxs: list
 
 @dataclass
 class DPResult:
@@ -33,12 +34,13 @@ class CharacterTable():
         for i, irrep in enumerate(self.irreps):
             self.h += irrep.characters[0]
             self.table[i,:] = irrep.characters
+        self.h = int(self.h)
         self.class_orders = np.zeros((self.nirreps, ))
         for s, symop in enumerate(self.symops):
             self.class_orders[symop.cla] += 1
     
     @classmethod
-    def from_libmsym(cls, ctx, pg):
+    def from_libmsym(cls, ctx, pg, irrep_idx_lengths):
         # Convert libmsym objects to our objects
         symops = []
         rgx = re.compile(r"^libmsym.SymmetryOperation\(\s*([^,\s]*)\s*")
@@ -50,8 +52,14 @@ class CharacterTable():
                 raise RuntimeError("No name found for libmsym symmetry operation!")
             symops.append(SymmetryOperation(name, symop.order, symop.power, np.array(symop.vector), symop.conjugacy_class))
         irreps = []
+        counter = 0
         for i, irrep in enumerate(ctx.subrepresentation_spaces):
-            irreps.append(Irrep(ctx.character_table.symmetry_species[i].name, ctx.character_table.table[i,:], i))
+            if irrep_idx_lengths == 0:
+                idxs = []
+            else:
+                idxs = list(range(counter, counter+irrep_idx_lengths[i]))
+                counter += irrep_idx_lengths[i]
+            irreps.append(Irrep(ctx.character_table.symmetry_species[i].name, ctx.character_table.table[i,:], i, idxs))
         rsymops = []
         for i in ctx.character_table.symmetry_operations:
             m = re.match(rgx, str(i))
@@ -91,10 +99,13 @@ class CharacterTable():
         for arg in args:
             chars *= arg.characters
         s = sum(chars * self.class_orders * irrep.characters)
-        n = s // self.h
+        n = int(s) // self.h
         if n > 0:
             return True
         return False
+
+    def dp_symmetric(self, a, b, *args):
+        pass
 
     def idx_from_irrep(self, irrep):
         for i, selfirreps in enumerate(self.irreps):

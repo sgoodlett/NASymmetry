@@ -1,4 +1,7 @@
+import os
+os.system('echo $PYTHONPATH')
 from character_table import CharacterTable
+
 import libmsym as msym
 import numpy as np
 import pprint
@@ -12,19 +15,13 @@ class LibmsymWrapper(object):
     def __init__(self, molecule, molecule_basis):
         self.molecule = molecule
         self.molecule_basis = molecule_basis
-        print("nothing to init")
     
     def run(self):
-        print('in stock!')
-        print(self.molecule)
-        print(self.molecule_basis)
-
         def find_bf_idx(target_bf, bf_map):
             for i,bf in bf_map:
                 if target_bf == bf:
                     return i
         
-        #def set_basis(element, z):
         def set_basis(element, z, molecule_basis):
             basis_functions = []
             check = []
@@ -52,8 +49,6 @@ class LibmsymWrapper(object):
             return basis_functions
         
         def gen_salcs(mol):
-            print('printing mol')
-            print(mol)
             (coord, masses, atoms, *garbage) = mol.to_arrays()
             elements = []
             for i in range(mol.natom()):
@@ -74,7 +69,6 @@ class LibmsymWrapper(object):
             with msym.Context(elements=elements, basis_functions=basis_functions) as ctx:
                 pg = ctx.find_symmetry()
                 selements = ctx.symmetrize_elements()
-                ctab = CharacterTable.from_libmsym(ctx, pg)
                 nbfxns = len(basis_functions)
                 super_irrep_block = []
                 for srsidx, srs in enumerate(ctx.subrepresentation_spaces):
@@ -84,19 +78,19 @@ class LibmsymWrapper(object):
                     for salc in srs.salcs:
                         bfidxs = []
                         for bf in salc.basis_functions:
-                            #print(salc.basis_functions)
                             bfidxs.append(find_bf_idx(bf, aos_map))
                         for pf in salc.partner_functions:
                             irrep_block[bfidxs,salcidx] = pf
                             salcidx += 1
                     super_irrep_block.append(irrep_block)
                 separate_pieces = []
-                for srsidx in range(len(ctx.subrepresentation_spaces)):
-                    print(ctx.character_table.symmetry_species[srsidx].name, super_irrep_block[srsidx]) # Will print aotoso matrix WITH irreps
+                piece_sizes = []
+                for srsidx, srs in enumerate(ctx.subrepresentation_spaces):
+                    #print(ctx.character_table.symmetry_species[srsidx].name, super_irrep_block[srsidx]) # Will print aotoso matrix WITH irreps
                     separate_pieces.append(super_irrep_block[srsidx])
-                return super_irrep_block, separate_pieces, ctab
+                    piece_sizes.append(np.shape(super_irrep_block[srsidx])[1])
+                ctab = CharacterTable.from_libmsym(ctx, pg, piece_sizes)
+                return super_irrep_block, ctab
 
-        salcs, blocks, ctab = gen_salcs(self.molecule)
-        self.salcs = salcs
-        self.ctab = ctab
+        self.salcs, self.ctab = gen_salcs(self.molecule)
 

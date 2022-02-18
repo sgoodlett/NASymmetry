@@ -49,7 +49,50 @@ class DPTable():
                 if i >= j:
                     self.table[i,j] = self._direct_product(row_irrep, column_irrep)
                     self.table[j,i] = self.table[i,j]
+    def full_direct_product(self, a, b, *args):
+        chars = a.characters * b.characters
+        for arg in args:
+            chars *= arg.characters
+        m = chars * self.class_orders
+        return self.find_irrep(m)
 
+    def dp_contains(self, irrep, a, b, *args):
+        chars = a.characters * b.characters
+        for arg in args:
+            chars *= arg.characters
+        s = sum(chars * self.class_orders * irrep.characters)
+        n = s // self.order
+        if n > 0:
+            return True
+        return False
+
+    def idx_from_irrep(self, irrep):
+        for i, selfirreps in enumerate(self.irreps):
+            if irrep == selfirreps:
+                return i
+        return RuntimeError("No match found in idx_from_irrep")
+
+    def _direct_product(self, a, b):
+        m = a.characters * b.characters * self.class_orders
+        return self.find_irrep(m)
+
+    def find_irrep(self, characters):
+        for idx, irrep in enumerate(self.irreps):
+            if np.array_equal(characters, irrep.characters):
+                return DPResult([irrep], [1])
+        return self.decompose_rep(characters)
+
+    def decompose_rep(self, characters):
+        constituent_irreps = []
+        multiplicities = []
+        for idx, irrep in enumerate(self.irreps):
+            s = sum(characters * irrep.characters)
+            n = s // self.order
+            n = int(n)
+            if n != 0:
+                constituent_irreps.append(irrep)
+                multiplicities.append(n)
+        return DPResult(constituent_irreps, np.array(multiplicities))
     def full_direct_product(self, a, b, *args):
         chars = a.characters * b.characters
         for arg in args:
