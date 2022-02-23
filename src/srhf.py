@@ -1,4 +1,3 @@
-import imp
 import psi4
 import numpy as np
 from scipy.linalg import fractional_matrix_power
@@ -16,7 +15,15 @@ def aotoso(A, salcs):
     """
     B = []
     for i, irrep in enumerate(salcs):
-        B.append(np.einsum("vj,uv,ui->ij", irrep, A, irrep))
+        print(f"here {i}")
+        print(irrep)
+        print(A)
+        #B.append(np.einsum("vj,uv,ui->ij", irrep, A, irrep))
+        #temp = np.einsum("vj,vu,ui->ji", irrep, A, irrep)
+        temp1 = np.einsum('uv,ui->iv', A, irrep)
+        temp  = np.einsum('iv,vj->ij', temp1, irrep)
+        print(temp)
+        B.append(temp)
     return BDMatrix(B)
 
 def aotoso_2(ERI, salcs):
@@ -157,7 +164,11 @@ def myRHF(molecule, ints, enuc, basis, ndocc, nbfxns, paotoso):
     molecule_basis = get_basis(molecule, basis)
     print(molecule_basis)
     # AO integrals
+    print("SO overlap")
+    ints.so_overlap().print_out()
     S = ints.ao_overlap().np
+    print("AO overlap")
+    print(S)
     T = ints.ao_kinetic().np
     V = ints.ao_potential().np
     bigERI = ints.ao_eri().np
@@ -168,7 +179,8 @@ def myRHF(molecule, ints, enuc, basis, ndocc, nbfxns, paotoso):
     exec_libmsym = LibmsymWrapper(molecule, molecule_basis)
     exec_libmsym.run()
     salcs = exec_libmsym.salcs
-    salcs = paotoso
+    #salcs[0][:,[3,2]] = salcs[0][:,[2,3]]
+    #salcs = paotoso
     print("Printing SALCs")
     print(salcs)
     ctab = exec_libmsym.ctab
@@ -225,13 +237,13 @@ def myRHF(molecule, ints, enuc, basis, ndocc, nbfxns, paotoso):
 if __name__ == "__main__":
     from input import Settings
     #from ammonia import Settings
-    np.set_printoptions(suppress=True, linewidth=120, precision=14)
+    np.set_printoptions(suppress=True, linewidth=12000, precision=7)
     molecule = psi4.geometry(Settings['molecule'])
     molecule.update_geometry()
     ndocc = Settings['nalpha'] #Settings['nbeta']
     scf_max_iter = Settings['scf_max_iter']
     Enuc = molecule.nuclear_repulsion_energy()
-    basis = psi4.core.BasisSet.build(molecule, 'BASIS', Settings['basis'])
+    basis = psi4.core.BasisSet.build(molecule, 'BASIS', Settings['basis'], puream=True)
     mints = psi4.core.MintsHelper(basis)
     psi4.set_options({'basis': Settings["basis"],
                       'scf_type': 'pk',
@@ -244,6 +256,8 @@ if __name__ == "__main__":
     nbfxns = psi4.core.BasisSet.nbf(basis)
     pe, wfn = psi4.energy('scf', return_wfn=True)
     paotoso = wfn.aotoso().nph
+    print("Psi salcs")
+    print(paotoso)
     #-74.96466253910498
     #-55.44441714586791
     E = myRHF(molecule, mints, Enuc, basis, ndocc, nbfxns, paotoso)
