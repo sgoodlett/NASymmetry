@@ -1,5 +1,4 @@
 import os
-os.system('echo $PYTHONPATH')
 from character_table import CharacterTable
 
 import libmsym as msym

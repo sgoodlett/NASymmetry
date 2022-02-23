@@ -1,12 +1,14 @@
+import imp
 import psi4
 import numpy as np
 from scipy.linalg import fractional_matrix_power
 from scipy.linalg import block_diag
 from scipy import linalg as LA
 from libmsym_wrap import LibmsymWrapper 
-from input import Settings
 from bdmats import BDMatrix
 from rhf_helper import get_basis, build_fock_sparse, SparseERI, build_fock_sparse_sym
+import time
+from copy import deepcopy
 
 def aotoso(A, salcs):
     """
@@ -41,6 +43,7 @@ def normalize_S(S):
     Ripped straight from PSI4.
     """
     A = []
+    normlists = []
     for i, s in enumerate(S):
         if len(s) == 0:
 #            NS_sym.append(np.array([]))
@@ -55,7 +58,7 @@ def normalize_S(S):
                     norm2 = get_norm(s[j,j])
                     s[i,j] = s[i,j] * norm1 * norm2
             eigval, U = np.linalg.eigh(s)
-            Us = U.copy()
+            Us = deepcopy(U)
             for i in range(len(eigval)):
                 Us[:,i] = U[:,i] * 1.0/np.sqrt(eigval[i])
             
@@ -63,6 +66,9 @@ def normalize_S(S):
                 Us[i,:] = Us[i,:] * (normlist[i]) 
             anti = np.dot(Us, U.T)
             A.append(anti)
+            normlists.append(normlist)
+    print("Normlist")
+    print(normlists)
     return BDMatrix(A)
 
 def order_eigval(eigval):
@@ -140,48 +146,69 @@ def rhf_energy(D, H, F):
         E = sum(sum(np.multiply(D,(H+F))))
     return E
 
-def myRHF(molecule, ints, enuc, basis):
+def myRHF(molecule, ints, enuc, basis, ndocc, nbfxns, paotoso):
     """
     RHF procedure.
     Starts by defining symmetry objects, then symmetrizes AO integrals.
     Then we build the initial matrices and loop over the SCF steps fifty times.
     """
+    print("Thank you for choosing our RHF code, now beginning. Please keep your hands and feet inside the ride at all times.")
+    start = time.time()
     molecule_basis = get_basis(molecule, basis)
-    
-    # Being lazy
-    nbfxns = 7
-    ndocc = 5
-    
+    print(molecule_basis)
     # AO integrals
     S = ints.ao_overlap().np
     T = ints.ao_kinetic().np
     V = ints.ao_potential().np
     bigERI = ints.ao_eri().np
-    
+    now = time.time()
+    print(f"AO integrals are calculated! {now-start:6.3f}")
+    before = time.time()
     # Defining symmetry objects
     exec_libmsym = LibmsymWrapper(molecule, molecule_basis)
     exec_libmsym.run()
     salcs = exec_libmsym.salcs
+    salcs = paotoso
+    print("Printing SALCs")
+    print(salcs)
     ctab = exec_libmsym.ctab
-    
+    now = time.time()
+    print(f"Point group is: {ctab.name}. {now-before:6.3f}")
+    before = time.time()
     # SO integrals
     S = aotoso(S, salcs)
+    print("S")
+    print(S)
     T = aotoso(T, salcs)
     V = aotoso(V, salcs)
     bigERI = aotoso_2(bigERI, salcs)
-    
+    now = time.time()
+    print(f"SO integrals are formed! {now-before:6.3f}")
+    before = time.time()
     # Building sparse ERI
     ERI = SparseERI(nbfxns)
     ERI.remove_asym(ctab)
     ERI.get_ints_dummy(bigERI)
     
     # Initializing RHF
+    now = time.time()
+    print(f"Building initial things! {now-before:6.3f}")
+    before = time.time()
     H = T + V
+    print("Printing H")
+    print(H)
     A = normalize_S(S.blocks)
+    print("A")
+    print(A)
     Fs = A.transpose().dot(H.dot(A))
     eps, Cs = Fs.eigh()
     C = A.dot(Cs)
     D = build_D(C, eps, ndocc)
+    print("Initial Density Matrix")
+    print(D)
+    now = time.time()
+    print(f"Starting iterations! {now-before:6.3f}")
+    before = time.time()
     for i in range(50):
         F = build_fock_sparse_sym(H, D, ERI, nbfxns)
         E = rhf_energy(D, H, F) + enuc
@@ -189,8 +216,15 @@ def myRHF(molecule, ints, enuc, basis):
         eps, Cs = Fs.eigh()
         C = A.dot(Cs)
         D = build_D(C, eps, ndocc)
-    print(E)
+        now = time.time()
+        print(f"Step {i:2d}: RHF Energy = {E:14.10f}   {now-before:6.3f}")
+        before = time.time()
+    print(f"Energy is converged probably! E = {E:14.10f}. Total time = {now-start:6.3f}")
+    return E
+
 if __name__ == "__main__":
+    from input import Settings
+    #from ammonia import Settings
     np.set_printoptions(suppress=True, linewidth=120, precision=14)
     molecule = psi4.geometry(Settings['molecule'])
     molecule.update_geometry()
@@ -199,12 +233,18 @@ if __name__ == "__main__":
     Enuc = molecule.nuclear_repulsion_energy()
     basis = psi4.core.BasisSet.build(molecule, 'BASIS', Settings['basis'])
     mints = psi4.core.MintsHelper(basis)
-    psi4.set_options({'basis': 'sto-3g',
+    psi4.set_options({'basis': Settings["basis"],
                       'scf_type': 'pk',
                       'e_convergence': 1e-10,
                      'reference': 'rhf',
-                     'print' : 5,
-                     'guess' : 'core'})
-    #psi4.energy('scf')
+                     'guess' : 'core',
+                     "puream": True,
+                     "print": 5},)
+    ndocc = Settings["nalpha"]
+    nbfxns = psi4.core.BasisSet.nbf(basis)
+    pe, wfn = psi4.energy('scf', return_wfn=True)
+    paotoso = wfn.aotoso().nph
     #-74.96466253910498
-    E = myRHF(molecule, mints, Enuc, basis)
+    #-55.44441714586791
+    E = myRHF(molecule, mints, Enuc, basis, ndocc, nbfxns, paotoso)
+    print(f"Difference between us and PSI4: {abs(E-pe)}")
