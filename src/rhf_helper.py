@@ -50,11 +50,13 @@ class SparseERI():
 def get_basis(molecule, basis):
     num = molecule.natom()
     molecule_basis = []
+    counter = 0
     for x in range(0, num):
         atom_basis = []
         molecule_basis.append(str(molecule.symbol(x)))
         for y in range(0, basis.nshell_on_center(x)):
-            atom_basis.append(basis.shell(y).am)
+            atom_basis.append(basis.shell(y+counter).am)
+        counter += basis.nshell_on_center(x)
         molecule_basis.append(atom_basis)
     return molecule_basis
     
