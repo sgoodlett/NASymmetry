@@ -15,14 +15,10 @@ def aotoso(A, salcs):
     """
     B = []
     for i, irrep in enumerate(salcs):
-        print(f"here {i}")
-        print(irrep)
-        print(A)
         #B.append(np.einsum("vj,uv,ui->ij", irrep, A, irrep))
         #temp = np.einsum("vj,vu,ui->ji", irrep, A, irrep)
         temp1 = np.einsum('uv,ui->iv', A, irrep)
         temp  = np.einsum('iv,vj->ij', temp1, irrep)
-        print(temp)
         B.append(temp)
     return BDMatrix(B)
 
@@ -52,6 +48,7 @@ def normalize_S(S):
     A = []
     normlists = []
     for i, s in enumerate(S):
+        over = np.zeros((len(s),len(s)))
         if len(s) == 0:
 #            NS_sym.append(np.array([]))
             A.append(np.array([]))
@@ -63,8 +60,8 @@ def normalize_S(S):
                 normlist.append(norm1)
                 for j in range(len(s)):
                     norm2 = get_norm(s[j,j])
-                    s[i,j] = s[i,j] * norm1 * norm2
-            eigval, U = np.linalg.eigh(s)
+                    over[i,j] = s[i,j] * norm1 * norm2
+            eigval, U = np.linalg.eigh(over)
             Us = deepcopy(U)
             for i in range(len(eigval)):
                 Us[:,i] = U[:,i] * 1.0/np.sqrt(eigval[i])
@@ -162,13 +159,8 @@ def myRHF(molecule, ints, enuc, basis, ndocc, nbfxns, paotoso):
     print("Thank you for choosing our RHF code, now beginning. Please keep your hands and feet inside the ride at all times.")
     start = time.time()
     molecule_basis = get_basis(molecule, basis)
-    print(molecule_basis)
     # AO integrals
-    print("SO overlap")
-    ints.so_overlap().print_out()
     S = ints.ao_overlap().np
-    print("AO overlap")
-    print(S)
     T = ints.ao_kinetic().np
     V = ints.ao_potential().np
     bigERI = ints.ao_eri().np
@@ -188,9 +180,11 @@ def myRHF(molecule, ints, enuc, basis, ndocc, nbfxns, paotoso):
     print(f"Point group is: {ctab.name}. {now-before:6.3f}")
     before = time.time()
     # SO integrals
-    S = aotoso(S, salcs)
-    print("S")
+    print("Printing AO Overlap")
     print(S)
+    S = aotoso(S, salcs)
+    print("Printing SO Overlap")
+    print(S.full_mat())
     T = aotoso(T, salcs)
     V = aotoso(V, salcs)
     bigERI = aotoso_2(bigERI, salcs)
@@ -207,17 +201,11 @@ def myRHF(molecule, ints, enuc, basis, ndocc, nbfxns, paotoso):
     print(f"Building initial things! {now-before:6.3f}")
     before = time.time()
     H = T + V
-    print("Printing H")
-    print(H)
     A = normalize_S(S.blocks)
-    print("A")
-    print(A)
     Fs = A.transpose().dot(H.dot(A))
     eps, Cs = Fs.eigh()
     C = A.dot(Cs)
     D = build_D(C, eps, ndocc)
-    print("Initial Density Matrix")
-    print(D)
     now = time.time()
     print(f"Starting iterations! {now-before:6.3f}")
     before = time.time()
@@ -235,8 +223,8 @@ def myRHF(molecule, ints, enuc, basis, ndocc, nbfxns, paotoso):
     return E
 
 if __name__ == "__main__":
-    from input import Settings
-    #from ammonia import Settings
+    #from input import Settings
+    from ammonia import Settings
     np.set_printoptions(suppress=True, linewidth=12000, precision=7)
     molecule = psi4.geometry(Settings['molecule'])
     molecule.update_geometry()
@@ -251,14 +239,13 @@ if __name__ == "__main__":
                      'reference': 'rhf',
                      'guess' : 'core',
                      "puream": True,
-                     "print": 5},)
+                     "print": 1},)
     ndocc = Settings["nalpha"]
     nbfxns = psi4.core.BasisSet.nbf(basis)
     pe, wfn = psi4.energy('scf', return_wfn=True)
     paotoso = wfn.aotoso().nph
-    print("Psi salcs")
-    print(paotoso)
     #-74.96466253910498
     #-55.44441714586791
+    print("Here")
     E = myRHF(molecule, mints, Enuc, basis, ndocc, nbfxns, paotoso)
     print(f"Difference between us and PSI4: {abs(E-pe)}")
