@@ -9,6 +9,7 @@ def find_point_group(mol):
     saxis = [0,0,0]
     moit = calcmoit(mol)
     Ia_mol, Ib_mol, Ic_mol = np.sort(np.linalg.eigh(moit)[0])
+    eat_shit("Nate")
     if Ia_mol == 0.0:
         if isequivalent(mol, mol.transform(inversion_matrix())):
             pg = "Dinfh"

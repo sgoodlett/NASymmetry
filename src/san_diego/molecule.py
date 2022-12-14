@@ -176,6 +176,9 @@ def calcmoit(atoms):
                     I[i,j] -= atoms.masses[k]*atoms.coords[k,i]*atoms.coords[k,j]
     return I
 
+def eat_shit(a):
+    pass
+
 if __name__ == "__main__":
     from input import Settings
     psimol = psi4.geometry(Settings["molecule"])
