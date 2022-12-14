@@ -8,37 +8,7 @@ from scipy import linalg as LA
 from collections import Counter
 from libmsym_wrap import LibmsymWrapper 
 import collections
-
-
 from input import Settings
-
-print(Settings)
-
-np.set_printoptions(suppress=True, linewidth=120, precision=14)
-
-
-molecule = psi4.geometry(Settings['molecule'])
-molecule.update_geometry()
-
-ndocc = Settings['nalpha'] #Settings['nbeta']
-
-scf_max_iter = Settings['scf_max_iter']
-
-print(molecule.nuclear_repulsion_energy())
-
-basis = psi4.core.BasisSet.build(molecule, 'BASIS', Settings['basis'])
-mints = psi4.core.MintsHelper(basis)
-
-
-psi4.set_options({'basis': 'sto-3g',
-                  'scf_type': 'pk',
-                  'e_convergence': 1e-10,
-                 'reference': 'rhf',
-                 'print' : 5,
-                 'guess' : 'core'})
-
-
-psi4.energy('scf')
 
 
 def get_basis(molecule):
@@ -51,13 +21,6 @@ def get_basis(molecule):
             atom_basis.append(basis.shell(y).am)
         molecule_basis.append(atom_basis)
     return molecule_basis
-
-molecule_basis = get_basis(molecule)
-
-exec_libmsym = LibmsymWrapper(molecule, molecule_basis)
-
-exec_libmsym.run()
-salcs = exec_libmsym.salcs
 
 
 def oei_transform(salcs, oei):
@@ -82,15 +45,19 @@ def TEI_transform(salcs, tei):
             Tei.append(tei)
     return Tei
 
-S = mints.ao_overlap().np
-T = mints.ao_kinetic().np
-V = mints.ao_potential().np
-I = mints.ao_eri().np
+def TEI_transform_stupid(salcs, tei):
+    naos = np.shape(salcs[0])[0]
+    first = True
+    for i,s in enumerate(salcs):
+        if np.shape(s) is not np.empty:
+            if first:
+                first = False
+                aotoso_full = s
+            else:
+                aotoso_full = np.hstack((aotoso_full, s))
+    Tei = np.einsum("PQRS,Pp,Qq,Rr,Ss->pqrs",tei,aotoso_full,aotoso_full,aotoso_full,aotoso_full, optimize="optimal")
+    return Tei
 
-S_sym = oei_transform(salcs, S)
-T_sym = oei_transform(salcs, T)
-V_sym = oei_transform(salcs, V)
-I_sym = TEI_transform(salcs, I)
 
 def build_H(T_sym, V_sym):
     H_sym = []
@@ -102,7 +69,6 @@ def build_H(T_sym, V_sym):
             h = t + V_sym[i]
             H_sym.append(h)
     return H_sym
-
 
 def get_norm(num):
     norm = (1/np.sqrt(num))
@@ -126,12 +92,12 @@ def normalize_overlap(S_sym):
                     s[i,j] = s[i,j] * norm1 * norm2
             eigval, U = np.linalg.eigh(s)
             Us = U.copy()
-            print('eigvecs')
-            print(U)
+            #print('eigvecs')
+            #print(U)
             for i in range(len(eigval)):
                 Us[:,i] = U[:,i] * 1.0/np.sqrt(eigval[i])
-            print('half transformed?')
-            print(Us)
+            #print('half transformed?')
+            #print(Us)
             
             for i in range(len(eigval)):
                 Us[i,:] = Us[i,:] * (normlist[i]) 
@@ -159,38 +125,6 @@ def init_fock(A, H_sym):
     
     return Fn, C, Energy
 
-H_sym = build_H(T_sym, V_sym)
-A = normalize_overlap(S_sym)
-print('antisymm with normalize')
-print(A)
-
-#A = antisymmetrize(NS_sym)
-
-
-
-Fn, C, Energy = init_fock(A, H_sym)
-print('init fock')
-print(Fn)
-print('coefficients')
-print(C)
-
-
-
-energies = []
-aufbau = []
-for x, e in enumerate(Energy):
-    for y in e:
-        aufbau.append(x)
-        energies.append(y)
-energies = np.array(energies)
-
-aufbau = np.array(aufbau)
-aufbau = aufbau[np.argsort(energies)]
-
-energies = energies[np.argsort(energies)]
-aufbau = aufbau[:ndocc]
-collect = collections.Counter(aufbau)
-
 def occupy(C, collect):
     Cocc = []
     D = []
@@ -208,13 +142,67 @@ def occupy(C, collect):
 
     return Cocc, D
 
-Cocc, D = occupy(C, collect)
+if __name__ == "__main__":
+    #print(Settings)
+    np.set_printoptions(suppress=True, linewidth=120, precision=14)
+    molecule = psi4.geometry(Settings['molecule'])
+    molecule.update_geometry()
+    ndocc = Settings['nalpha'] #Settings['nbeta']
+    scf_max_iter = Settings['scf_max_iter']
+    #print(molecule.nuclear_repulsion_energy())
+    basis = psi4.core.BasisSet.build(molecule, 'BASIS', Settings['basis'])
+    mints = psi4.core.MintsHelper(basis)
+    psi4.set_options({'basis': 'sto-3g',
+                      'scf_type': 'pk',
+                      'e_convergence': 1e-10,
+                     'reference': 'rhf',
+                     'print' : 5,
+                     'guess' : 'core'})
+    #psi4.energy('scf')
+    
+    molecule_basis = get_basis(molecule)
+    exec_libmsym = LibmsymWrapper(molecule, molecule_basis)
+    exec_libmsym.run()
+    salcs = exec_libmsym.salcs
+    #print(salcs)
+    S = mints.ao_overlap().np
+    T = mints.ao_kinetic().np
+    V = mints.ao_potential().np
+    I = mints.ao_eri().np
 
-print('init density')
-print(D)
+    S_sym = oei_transform(salcs, S)
+    T_sym = oei_transform(salcs, T)
+    V_sym = oei_transform(salcs, V)
+    I_sym = TEI_transform_stupid(salcs, I)
+    H_sym = build_H(T_sym, V_sym)
+    A = normalize_overlap(S_sym)
+    #print('antisymm with normalize')
+    #print(A)
 
+    #A = antisymmetrize(NS_sym)
 
+    Fn, C, Energy = init_fock(A, H_sym)
+    #print('init fock')
+    #print(Fn)
+    #print('coefficients')
+    #print(C)
+    energies = []
+    aufbau = []
+    for x, e in enumerate(Energy):
+        for y in e:
+            aufbau.append(x)
+            energies.append(y)
+    energies = np.array(energies)
 
+    aufbau = np.array(aufbau)
+    aufbau = aufbau[np.argsort(energies)]
+
+    energies = energies[np.argsort(energies)]
+    aufbau = aufbau[:ndocc]
+    collect = collections.Counter(aufbau)
+    Cocc, D = occupy(C, collect)
+    #print('init density')
+    #print(D)
 
 #def antisymmetrize(NS_sym):
 #    A = []

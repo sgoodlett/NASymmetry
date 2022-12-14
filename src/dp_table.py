@@ -1,6 +1,5 @@
 from typing import List
 import numpy as np
-from numpy.lib.financial import irr
 from dataclasses import dataclass
 
 @dataclass
