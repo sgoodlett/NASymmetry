@@ -1,6 +1,6 @@
 import numpy as np
 from math import isclose
-from molecule import *
+from san_diego.molecule import *
 
 class RotationElement():
     def __init__(self, axis, order):
@@ -11,6 +11,9 @@ class RotationElement():
             return issame_axis(self.axis, other.axis) and self.order == other.order
 
 def normalize(a):
+    n = np.linalg.norm(a)
+    if n <= tol:
+        return None
     return a / np.linalg.norm(a)
 
 def issame_axis(a, b):
