@@ -1,8 +1,8 @@
 import numpy as np
 import psi4
 from math import isclose
-from molecule import *
-from symtools import *
+from san_diego.molecule import *
+from san_diego.symtools import *
 
 def find_point_group(mol):
     paxis = [0,0,0]

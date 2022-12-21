@@ -42,7 +42,7 @@ class Molecule():
 
     def __eq__(self, other):
         if isinstance(other, Molecule):
-            return (other.atoms == self.atoms).all() and (other.masses == self.masses).all() and np.allclose(other.coords, self.coords, atol=self.tolerance)
+            return (other.atoms == self.atoms).all() and (other.masses == self.masses).all() and np.allclose(other.coords, self.coords, atol=tol)
 
     def find_com(self):
         com = np.zeros(3)
@@ -79,11 +79,12 @@ class Molecule():
     def find_SEAs(self):
         dm = self.distance_matrix()
         out = []
+        nate_thang = []
         for i in range(self.natoms):
             for j in range(i+1,self.natoms):
-                a = np.sort(dm[i,:])
-                b = np.sort(dm[j,:])
-                z = a - b
+                a_idx = np.argsort(dm[i,:])
+                b_idx = np.argsort(dm[j,:])
+                z = dm[i,a_idx] - dm[j,b_idx]
                 chk = True
                 for k in z:
                     if abs(k) < tol:
@@ -93,7 +94,7 @@ class Molecule():
                 if chk:
                     out.append((i,j))
         nonos = []
-        biggerun = []
+        SEAs = []
         for i in range(self.natoms):
             if i in nonos:
                 continue
@@ -108,8 +109,8 @@ class Molecule():
                     else:
                         biggun.append(k[0])
                         nonos.append(k[0])
-            biggerun.append(SEA("", biggun, np.zeros(3)))
-        return biggerun
+            SEAs.append(SEA("", biggun, np.zeros(3)))
+        return SEAs
 
 def rotation_matrix(axis, theta):
     cos_t = np.cos(theta)
@@ -144,9 +145,6 @@ def Cn(axis, n):
     theta = 2*np.pi/n
     return rotation_matrix(axis, theta)
 
-#def sigma(axis):
-#    return reflection_matrix(axis)
-
 def Sn(axis, n):
     return np.dot(Cn(axis, n), reflection_matrix(axis))
 
@@ -180,18 +178,12 @@ def eat_shit(a):
     pass
 
 if __name__ == "__main__":
-    from input import Settings
-    psimol = psi4.geometry(Settings["molecule"])
+    with open("xyz/water.xyz", "r") as fn:
+        strang = fn.read()
+    psimol = psi4.core.Molecule.from_string(strang)
     beebus = psimol.to_schema("psi4")
     mol = Molecule.from_schema(beebus)
-    print(mol.coords)
-    print(mol.find_com())
+    #print(mol.coords)
+    #print(mol.find_com())
     seas = mol.find_SEAs()
     print(seas)
-    M = rotation_matrix([0,0,1],np.pi)
-    mol2 = mol.transform(M)
-    print(mol.coords)
-    print(mol2.coords)
-    print(mol == mol2)
-    print(isequivalent(mol, mol2))
-    print(mol is mol2)
