@@ -375,8 +375,6 @@ def cn_class_map(class_map, n, idx_offset, cls_offset):
 def rotate_mol_to_symels(mol, paxis, saxis):
     phi, theta, chi = get_euler_angles(paxis, saxis)
     dc = dc_mat(phi, theta, chi)
-    print("Beebus")
-    print(dc)
     new_mol = mol.transform(dc)
     return new_mol
 
@@ -408,7 +406,6 @@ def get_euler_angles(paxis, saxis):
     yN = np.dot(r_phi,y)
     xN = np.dot(r_phi,x)
     theta = np.arccos(np.dot(z,paxis))
-    print(yN)
     r_theta = rotation_matrix(yN,theta)
     x2N = np.dot(r_theta,xN)
     Z = np.dot(r_theta,z)
@@ -457,9 +454,7 @@ def symtext_from_file(fn):
     return symtext_from_mol(mol)
 
 def symtext_from_mol(mol):
-    print("Weebus")
     mol.translate(mol.find_com())
-    print(mol)
     pg, (paxis, saxis) = find_point_group(mol)
     symels = pg_to_symels(pg)
     mol = rotate_mol_to_symels(mol, paxis, saxis)

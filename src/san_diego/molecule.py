@@ -136,10 +136,7 @@ def reflection_matrix(axis):
     return M
 
 def inversion_matrix():
-    M = np.zeros((3,3))
-    for i in range(3):
-        M[i,i] = -1
-    return M
+    return -1*np.identity(3)
 
 def Cn(axis, n):
     theta = 2*np.pi/n
