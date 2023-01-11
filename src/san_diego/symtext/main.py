@@ -239,78 +239,78 @@ def grab_order(class_str):
         return 1
 
 def generate_symel_to_class_map(symels, ctab):
-    return [1,2,3]
     pg = PointGroup.from_string(ctab.name)
     if pg.n is not None:
         ns = pg.n>>1 # pg.n floor divided by 2
     ncls = len(ctab.classes)
     nsymel = len(symels)
     class_map = np.zeros(nsymel)
-    class_map[0] = 1 # E is always first
+    class_map[0] = 0 # E is always first
     if pg.family == "C":
         if pg.subfamily == "s" or pg.subfamily == "i":
-            class_map[2] = 2
+            class_map[1] = 1
         elif pg.subfamily == "h":
             if pg.n % 2 == 0:
-                class_map[4:pg.n+2] = [i for i in range(2,pg.n+1)] # [2:pg.n] # C_n
-                class_map[3] = pg.n+1 # i
-                class_map[2] = pg.n+ns+1 # σh
-                for i in range(pg.n+3,2*pg.n+1):# = pg.n+3:2*pg.n # S_n
-                    if i > 3*ns+1:
+                class_map[3:pg.n+2] = [i for i in range(1,pg.n)] # [2:pg.n] # C_n
+                class_map[2] = pg.n # i
+                class_map[1] = pg.n+ns # σh
+                for i in range(pg.n+2,2*pg.n):# = pg.n+3:2*pg.n # S_n
+                    if i > 3*ns:
                         class_map[i] = i-ns
                     else:
                         class_map[i] = i+ns-1
             else:
-                for i in range(2,pg.n): # = 2:pg.n+1 # C_n
-                    class_map[i] = i-1
-                class_map[2] = pg.n+1 # σh
-                for i in range(pg.n+2,2*pg.n+1): # = pg.n+2:2*pg.n # S_n
+                for i in range(1,pg.n): # = 2:pg.n+1 # C_n
+                    class_map[i+1] = i
+                class_map[1] = pg.n # σh
+                for i in range(pg.n+1,2*pg.n): # = pg.n+2:2*pg.n # S_n
                     class_map[i] = i
         elif pg.subfamily == "v":
             # The last class is σv (and then σd if n is even), and the last symels are also these!
             cn_class_map(class_map, pg.n, 0, 0)
             if pg.n % 2 == 0:
-                class_map[-1-pg.n+1:-1-ns] = ncls-1
-                class_map[-1-ns+1:-1] = ncls
+                class_map[-pg.n:-ns] = ncls-2
+                class_map[-ns:] = ncls-1
             else:
-                class_map[-1-pg.n+1:-1] = ncls
+                class_map[-pg.n:] = ncls-1
         else:
-            class_map[2:-1] = [i for i in range(2,nsymel+1)] # 2:nsymel
+            class_map[1:] = [i for i in range(1,nsymel)] # 2:nsymel
     elif pg.family == "S":
         if pg.n % 4 == 0:
-            for i in range(2,pg.n+1): # = 2:pg.n
-                if i <= ns:
-                    class_map[i] = 2*i-1
+            for i in range(1,pg.n): # = 2:pg.n
+                if i <= ns-1:
+                    class_map[i] = 2*i
                 else:
-                    class_map[i] = 2*(i-ns)
+                    class_map[i] = 2*(i-ns)+1
         else:
-            class_map[2] = ns+1 # i
-            class_map[3:ns+1] = [i for i in range(2,ns+1)] # 2:ns # C_n
-            for i in range(ns+2,pg.n+1): # = ns+2:pg.n # S_n
-                if i > ns+(pg.n>>2)+1:
-                    class_map[i] = i-(ns-1)>>1
+            class_map[1] = ns # i
+            class_map[2:ns+1] = [i for i in range(1,ns)] # 2:ns # C_n
+            for i in range(ns+1,pg.n): # = ns+2:pg.n # S_n
+                if i > ns+(pg.n>>2):
+                    class_map[i] = i-(pg.n>>2)
                 else:
-                    class_map[i] = i + (ns-1)>>1
+                    class_map[i] = i+(pg.n>>2)
     elif pg.family == "D":
         if pg.subfamily == "h":
             if pg.n % 2 == 0:
-                class_map[2] = ncls-2 # σh
-                class_map[3] = (ncls>>1)+1 # i
+                class_map[1] = ncls-3 # σh
+                class_map[2] = (ncls>>1) # i
                 cn_class_map(class_map, pg.n, 2, 0) # Cn
-                class_map[pg.n+3:3*ns+2] = ns+2 # C2'
-                class_map[3*ns+3:2*pg.n+2] = ns+3 # C2''
-                for i in range(2*pg.n_3,3*pg.n+1): # = 2*pg.n+3:3*pg.n+1 # Sn
-                    if i > 3*pg.n-ns+1:
+                class_map[pg.n+2:3*ns+2] = ns+1 # C2'
+                class_map[3*ns+2:2*pg.n+2] = ns+2 # C2''
+                for i in range(2*pg.n+2,3*pg.n): # = 2*pg.n+3:3*pg.n+1 # Sn
+                    if i > 3*pg.n-ns:
                         class_map[i] = i-2*pg.n+3
                     else:
-                        class_map[i] = 3*pg.n+6-i
+                        class_map[i] = 3*pg.n+4-i
                 # The result of C2'×i changes depending if pg.n ≡ 0 (mod 4)
-                if pg.n % 4 == 0:
-                    class_map[-1-pg.n+1:-1-ns] = ncls-1 # σv
-                    class_map[-1-ns+1:-1] = ncls # σd
+                # but also D2h doesn't need to be flipped because I treated it special
+                if pg.n % 4 == 0 or pg.n == 2:
+                    class_map[-pg.n:-ns] = ncls-2 # σv
+                    class_map[-ns:] = ncls-1 # σd
                 else:
-                    class_map[-1-pg.n+1:-1-ns] = ncls # σv
-                    class_map[-1-ns+1:-1] = ncls-1 # σd
+                    class_map[-pg.n:-ns] = ncls-1 # σv
+                    class_map[-ns:] = ncls-2 # σd
             else:
                 class_map[2] = (ncls>>1)+1
                 cn_class_map(class_map, pg.n, 1, 0)
@@ -320,28 +320,28 @@ def generate_symel_to_class_map(symels, ctab):
         elif pg.subfamily == "d":
             if pg.n % 2 == 0:
                 cn_class_map(class_map, pg.n, 0, 0) # Cn
-                class_map[2:pg.n] = [2*i-1 for i in range(2,pg.n+1)] # 2*class_map[2:pg.n].-1 # Reposition Cn
+                class_map[1:pg.n] = 2*class_map[1:pg.n] # 2*class_map[2:pg.n].-1 # Reposition Cn
                 cn_class_map(class_map, pg.n+1, pg.n-1, 0) # Sn
-                class_map[pg.n+1:2*pg.n] = [2*i-1 for i in range(pg.n+1,2*pg.n+1)] # 2*(class_map[pg.n+1:2*pg.n].-1) # Reposition Sn
-                class_map[-1-2*pg.n+1:-1-pg.n] = ncls-1 # C2'
-                class_map[-1-pg.n+1:-1] = ncls # σd
+                class_map[pg.n:2*pg.n] = 2*class_map[pg.n:2*pg.n]-1 # 2*(class_map[pg.n+1:2*pg.n].-1) # Reposition Sn
+                class_map[-2*pg.n:-pg.n] = ncls-2 # C2'
+                class_map[-pg.n:] = ncls-1 # σd
             else:
-                class_map[2] = (ncls>>1)+1 # i
+                class_map[1] = ncls>>1 # i
                 cn_class_map(class_map, pg.n, 1, 0) # Cn
-                for i in range(pg.n+2,2*pg.n): # = pg.n+2:2*pg.n # Sn
-                    if i > pg.n+1+ns:
+                for i in range(pg.n+1,2*pg.n): # = pg.n+2:2*pg.n # Sn
+                    if i > pg.n+ns:
                         class_map[i] = i+2-pg.n
                     else:
-                        class_map[i] = 2*pg.n+4-i
-                class_map[-1-2*pg.n+1:-1-pg.n] = ns+2
-                class_map[-1-pg.n+1:-1] = ncls # σd
+                        class_map[i] = 2*pg.n+2-i
+                class_map[-2*pg.n:-pg.n] = ns+1
+                class_map[-pg.n:] = ncls-1 # σd
         else:
             cn_class_map(class_map, pg.n, 0, 0) # Cn
             if pg.n % 2 == 0:
-                class_map[-1-pg.n+1:-1-ns] = ncls-1 # Cn'
-                class_map[-1-ns+1:-1] = ncls # Cn''
+                class_map[-pg.n:-ns] = ncls-2 # Cn'
+                class_map[-ns:] = ncls-1 # Cn''
             else:
-                class_map[-1-pg.n+1:-1] = ncls # Cn
+                class_map[-pg.n:] = ncls-1 # Cn
     else:
         if pg.family == "T":
             if pg.subfamily == "h":
@@ -366,11 +366,12 @@ def generate_symel_to_class_map(symels, ctab):
     return class_map
 
 def cn_class_map(class_map, n, idx_offset, cls_offset):
-    for i in range(2,n+1): # = 2:n
-        if i > (n>>1)+1:
-            class_map[i+idx_offset] = n-i+2+cls_offset
+    for i in range(1,n): # = 2:n
+        if i > (n>>1):
+            class_map[i+idx_offset] = n-i+cls_offset
         else:
             class_map[i+idx_offset] = i+cls_offset
+    return class_map
 
 def rotate_mol_to_symels(mol, paxis, saxis):
     phi, theta, chi = get_euler_angles(paxis, saxis)
@@ -430,7 +431,8 @@ def get_atom_mapping(mol, symels):
     amap = np.zeros((len(mol), len(symels)))
     for (a, atom) in enumerate(mol):
         for (s, symel) in enumerate(symels):
-            w = where_you_go(mol, atom, symel)
+            w = where_you_go(mol, a, symel)
+            print(w)
             if w is not None:
                 amap[a,s] = w
             else:
@@ -438,8 +440,8 @@ def get_atom_mapping(mol, symels):
     return amap
 
 def where_you_go(mol, atom, symel):
-    ratom = np.dot(mol.coords[atom,:], symel.rrep.transpose())
-    length = np.shape(mol)[0]
+    ratom = np.dot(symel.rrep, mol.coords[atom,:].T)
+    length = mol.natoms
     for i in range(length):
         if np.isclose(mol.coords[i,:], ratom, atol=tol).all():
             return i

@@ -4,42 +4,9 @@ from .symtext import *
 def c_class_string(classes, pre, r, s):
     "Pushes class string to 'classes' for rotations, but ignores superscript if s is one"
     if s == 1:
-        classes.append(pre+f"_({r})")
+        classes.append(pre+f"_{r}")
     else:
-        classes.append(pre+f"_({r})^({s})")
-
-#def Cn_irr(n):
-#    irreps = [Irrep("A",ones(n))]
-#    if n % 2 == 0
-#        b = ones(n)
-#        for i = 1:n
-#            if i % 2 == 0
-#                b[i] *= -1
-#            end
-#        end
-#        push!(irreps, Irrep("B", b))
-#    end
-#    if 2 < n < 5
-#        θ = 2*pi / n
-#        v = zeros(n)
-#        for j = 0:n-1
-#            v[j+1] += 2*cos(j*θ)
-#        end
-#        push!(irreps, Irrep("E",v))
-#        
-#    elseif n > 2
-#        θ = 2*pi / n
-#        l = round(Int, (n - length(irreps)) / 2)
-#        for i = 1:l
-#            v = zeros(n)
-#            for j = 0:n-1
-#                v[j+1] += 2*cos(i*j*θ)
-#            end
-#            push!(irreps, Irrep("E$i",v))
-#        end
-#    end
-#    return irreps
-#end
+        classes.append(pre+f"_{r}^{s}")
 
 def Cn_irrmat(n):
     names = ["A"]
@@ -126,7 +93,7 @@ def Cnh_irr(n):
             if i == n>>1:
                 classes.append("sigma_h")
             else:
-                r,s = reduce(n, (i+n>>1)%n)
+                r,s = reduce(n, (i+(n>>1))%n)
                 if s % 2 == 0:
                     s += r
                 c_class_string(classes, "S", r, s)
@@ -151,8 +118,8 @@ def Cnh_irr(n):
     else:
         newnames = []
         for i in range(len(names)):# = 1:length(names):
-            newnames.append(names[i]*"''")
-            names[i] = names[i]*"'"
+            newnames.append(names[i]+"''")
+            names[i] = names[i]+"'"
         names += newnames
         cncharsi = -1 * cnchars
         top = np.hstack((cnchars, cnchars))
@@ -164,7 +131,7 @@ def Sn_irr(n):
     if n % 4 == 0:
         names, classes, chars = Cn_irrmat(n)
         for i in range(n): # = 1:n:
-            if i % 2 == 0:
+            if (i+1) % 2 == 0:
                 classes[i] = "S"+classes[i][1:]
     elif n % 2 == 0:
         ni = round(n/2)
@@ -175,7 +142,7 @@ def Sn_irr(n):
             c_class_string(classes, "C", r, s)
         classes.append("i")
         for i in range(1,n>>1): # = 1:n>>1-1:
-            r,s = reduce(n, (i<<1+n>>1)%n)
+            r,s = reduce(n, ((i<<1)+(n>>1))%n)
             c_class_string(classes, "S", r, s)
         newnames = []
         for i in range(len(names)): # = 1:length(names):
@@ -233,19 +200,23 @@ def Dnh_irr(n):
     if n % 2 == 0:
         classes.append("i")
         if n == 2:
-            classes.append("sigma_(xy)")
-            classes.append("sigma_(xz)")
-            classes.append("sigma_(yz)")
+            classes.append("sigma(xy)")
+            classes.append("sigma(xz)")
+            classes.append("sigma(yz)")
         else:
             for i in range(1,n>>1): # = 1:n>>1-1:
-                a = i+n>>1
-                if a > n>>1:
+                a = i+(n>>1)
+                if a > (n>>1):
                     a = n - a
                 r,s = reduce(n, a)
                 c_class_string(classes, "2S", r, s)
             classes.append("sigma_h")
-            classes.append(f"{n>>1}sigma_v")
-            classes.append(f"{n>>1}sigma_d")
+            if n % 4 == 0:
+                classes.append(f"{n>>1}sigma_v")
+                classes.append(f"{n>>1}sigma_d")
+            else:
+                classes.append(f"{n>>1}sigma_d")
+                classes.append(f"{n>>1}sigma_v")
         newnames = []
         for i in range(len(names)): # = 1:length(names):
             newnames.append(names[i]+"u")
@@ -280,9 +251,9 @@ def Dnd_irr(n):
         n2 = 2*n
         names, classes, chars = Sn_irr(n2)
         #classes = collect(1:2*n2)
-        classes = classes[1:n+1]
-        for i in range(2,n+1): # = 2:n:
-            classes[i-1] = "2"+classes[i-1]
+        classes = classes[0:n+1]
+        for i in range(1,n): # = 2:n:
+            classes[i] = "2"+classes[i]
         classes.append(f"{n}C_2'")
         classes.append(f"{n}sigma_d")
         names[0] = "A1"
@@ -291,7 +262,7 @@ def Dnd_irr(n):
         for i in range(1,n2): # = 2:n2:
             if i >= n2-i:
                 break
-            chars = chars[:,[j for j in range(np.shape(chars)[1]) if j != n-i]] # chars[:,0:-1.!=n2-i+2]
+            chars = chars[:,[j for j in range(np.shape(chars)[1]) if j != n2-i]] # chars[:,0:-1.!=n2-i+2]
         nirr = n+3
         names[2] = "B1"
         names.insert(3, "B2")

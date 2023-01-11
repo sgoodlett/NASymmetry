@@ -31,9 +31,12 @@ class Symel():
     symbol:str
     rrep:np.array
     def __str__(self) -> str:
-        return f"\nSymbol: {self.symbol}, Reducible Rep.:\n{self.rrep}"
+        with np.printoptions(precision=5, suppress=True, formatter={"all":lambda x: f"{x:8.5f}"}):
+            return f"\nSymbol: {self.symbol:>10s}: [{self.rrep[0,:]},{self.rrep[1,:]},{self.rrep[2,:]}]"
     def __repr__(self) -> str:
         return self.__str__()
+    def __eq__(self, other):
+        return self.symbol == other.symbol and np.isclose(self.rrep,other.rrep,atol=1e-10).all()
 
 class CharTable():
     def __init__(self, pg, irreps, classes, class_orders, chars, irrep_dims) -> None:
@@ -45,6 +48,11 @@ class CharTable():
         self.irrep_dims = irrep_dims
     def __repr__(self) -> str:
         return f"Character Table for {self.name}\nIrreps: {self.irreps}\nClasses: {self.classes}\nCharacters:\n{self.characters}\n"
+    def __eq__(self, other):
+        if len(self.irreps) == len(other.irreps) and len(self.classes) == len(other.classes) and np.shape(self.characters)==np.shape(other.characters):
+            return (self.irreps == other.irreps).all() and (self.classes == other.classes).all() and np.isclose(self.characters,other.characters,atol=1e-10).all()
+        else:
+            return False
 
 class Symtext():
     def __init__(self, pg, symels, chartable, class_map, atom_map, mult_table) -> None:
@@ -55,7 +63,8 @@ class Symtext():
         self.atom_map = atom_map
         self.mult_table = mult_table
         self.order = len(symels)
-
+    def __repr__(self):
+        return f"\n{self.chartable}\n{self.symels}\n{self.class_map}\n{self.atom_map}\n{self.mult_table}"
 def reduce(n, i):
     g = gcd(n, i)
     return n//g, i//g # floor divide to get an int, there should never be a remainder since we are dividing by the gcd
